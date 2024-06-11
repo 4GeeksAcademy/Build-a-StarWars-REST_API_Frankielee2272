@@ -7,7 +7,7 @@ db = SQLAlchemy()
 class User(db.Model):
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(250), nullable=False)
+    username = db.Column(db.String(250), nullable=False, unique=True)
     password = db.Column(db.String(250), nullable=False)
     favorites = db.relationship("Favorite")
 
@@ -15,7 +15,7 @@ class User(db.Model):
         return {
             "id": self.id,
             "username": self.username,
-
+            "favorites": list(map(lambda x: x.serialize(), self.favorites))
             # do not serialize the password, its a security breach
         }
 
@@ -35,8 +35,7 @@ class Planet(db.Model):
             "name": self.name,
             "climate": self.climate,
             "terrain": self.terrain,
-            "population": self.population,
-            "favorites": self.favorites,
+            "population": self.population
             # do not serialize the password, its a security breach
         }
 
@@ -56,8 +55,7 @@ class Character(db.Model):
             "height": self.height,
             "hair_color": self.hair_color,
             "eye_color": self.eye_color,
-            "gender": self.gender,
-            "favorites": self.favorites,
+            "gender": self.gender
             # do not serialize the password, its a security breach
         }
 
@@ -73,7 +71,6 @@ class Favorite(db.Model):
             "id": self.id,
             "user_id": self.user_id,
             "planet_id": self.planet_id,
-            "character_id": self.character_id,
+            "character_id": self.character_id
             # do not serialize the password, its a security breach
         }
-

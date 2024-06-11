@@ -1,120 +1,49 @@
-"""
-This module takes care of starting the API Server, Loading the DB and Adding the endpoints
-"""
-from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User,Planet, Character, Favorite
-from api.utils import generate_sitemap, APIException
-from flask_cors import CORS
+from flask import jsonify, url_for
+from flask import Blueprint
 
-api = Blueprint('api', __name__)
+class APIException(Exception):
+    status_code = 400
 
-# Allow CORS requests to this API
-CORS(api)
+    def __init__(self, message, status_code=None, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        if status_code is not None:
+            self.status_code = status_code
+        self.payload = payload
 
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv
 
+def has_no_empty_params(rule):
+    defaults = rule.defaults if rule.defaults is not None else ()
+    arguments = rule.arguments if rule.arguments is not None else ()
+    return len(defaults) >= len(arguments)
 
-@api.route('/users', methods=['GET'])
-def get_users():
-    users = User.query.all()
-    return jsonify([user.serialize() for user in users]), 200
+def generate_sitemap(app):
+    links = ['/admin/']
+    for rule in app.url_map.iter_rules():
+        # Filter out rules we can't navigate to in a browser
+        # and rules that require parameters
+        if "GET" in rule.methods and has_no_empty_params(rule):
+            url = url_for(rule.endpoint, **(rule.defaults or {}))
+            if "/admin/" not in url:
+                links.append(url)
 
-@api.route('/users/', methods=['POST'])
-def create_user():
-    request_body = request.get_json()
-    user = User(username=request_body["username"], password=request_body["password"])
-    db.session.add(user)
-    db.session.commit()
-    return jsonify(user.serialize()), 200
+    links_html = "".join(["<li><a href='" + y + "'>" + y + "</a></li>" for y in links])
+    return """
+        <div style="text-align: center;">
+        <img style="max-height: 80px" src='https://storage.googleapis.com/breathecode/boilerplates/rigo-baby.jpeg' />
+        <h1>Rigo welcomes you to your API!!</h1>
+        <p>API HOST: <script>document.write('<input style="padding: 5px; width: 300px" type="text" value="'+window.location.href+'" />');</script></p>
+        <p>Start working on your project by following the <a href="https://start.4geeksacademy.com/starters/full-stack" target="_blank">Quick Start</a></p>
+        <p>Remember to specify a real endpoint path like: </p>
+        <ul style="text-align: left;">"""+links_html+"</ul></div>"
 
-@api.route('/users/<int:id>', methods=['GET'])
-def get_single_user(id):
-    user = User.query.get(id)
-    return jsonify(user.serialize()), 200
+def construct_api_blueprint():
+    api = Blueprint('api', __name__)
 
-@api.route('/users/<int:id>', methods=['DELETE'])
-def delete_user(id):
-    user = User.query.get(id)
-    db.session.delete(user)
-    db.session.commit()
-    return jsonify(user.serialize(),'deleted'), 200
+    # Define your API routes here
 
-
-
-
-@api.route('/planets/<int:id>', methods=['GET'])
-def get_single_planet(id):
-    planet = Planet.query.get(id)
-    return jsonify(planet.serialize()), 200
-
-@api.route('/planets', methods=['GET'])
-def get_planets():
-    planets = Planet.query.all()
-    return jsonify([planet.serialize() for planet in planets]), 200
-
-@api.route('/planets', methods=['POST'])
-def create_planet():
-    request_body = request.get_json()
-    planet = Planet(name=request_body["name"], climate=request_body["climate"], terrain=request_body["terrain"], population=request_body["population"])
-    db.session.add(planet)
-    db.session.commit()
-    return jsonify(planet.serialize()), 200
-
-@api.route('/planets/<int:id>', methods=['DELETE'])
-def delete_planet(id):
-    planet = Planet.query.get(id)
-    db.session.delete(planet)
-    db.session.commit()
-    return jsonify(planet.serialize(),'deleted'), 200
-
-# Character Routes
-@api.route('/characters', methods=['GET'])
-def get_characters():
-    characters = Character.query.all()
-    return jsonify([character.serialize() for character in characters]), 200
-
-@api.route('/characters', methods=['POST'])
-def create_character():
-    request_body = request.get_json()
-    character =  Character(name=request_body["name"], height=request_body['height'], hair_color=request_body['hair_color'], eye_color=request_body['eye_color'], gender=request_body['gender'])
-    db.session.add(character)
-    db.session.commit()
-    return jsonify(character.serialize()), 200
-
-@api.route('/character/<int:character_id>', methods=['GET'])
-def get_single_character(character_id):
-    character = Character.query.get(character_id)
-    return jsonify(character.serialize()), 200
-
-@api.route('/character/<int:character_id>', methods=['DELETE'])
-def delete_character(character_id):
-    character = Character.query.get(character_id)
-    db.session.delete(character)
-    db.session.commit()
-    return jsonify(character.serialize(),'deleted'), 200
-
-# Favorite Routes
-@api.route('/favorites', methods=['GET'])
-def get_favorites():
-    favorites = Favorite.query.all()
-    return jsonify([favorite.serialize() for favorite in favorites]), 200
-
-@api.route('/favorite', methods=['POST'])
-def create_favorite():
-    request_body = request.get_json()
-    favorite = Favorite(user_id=request_body["user_id"], planet_id=request_body["planet_id"], character_id=request_body["character_id"])
-    db.session.add(favorite)
-    db.session.commit()
-    return jsonify(favorite.serialize()), 200
-
-@api.route('/favorite/<int:favorite_id>', methods=['GET'])
-def get_single_favorite(favorite_id):
-    favorite = Favorite.query.get(favorite_id)
-    return jsonify(favorite.serialize()), 200
-
-@api.route('/favorite/<int:favorite_id>', methods=['DELETE'])
-def delete_favorite(favorite_id):
-    favorite = Favorite.query.get(favorite_id)
-    db.session.delete(favorite)
-    db.session.commit()
-    return jsonify(favorite.serialize(),'deleted'), 200
-
+    return api
